@@ -1,4 +1,5 @@
 import 'package:coba/dashboard.dart';
+import 'package:coba/main.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart'; // Untuk menggunakan font khusus dari Google Fonts.
 import 'package:supabase_flutter/supabase_flutter.dart'; // Library Supabase untuk autentikasi.
@@ -39,7 +40,9 @@ class _LoginState extends State<Login> {
       if (response.session != null) {
         _showSnackBar('Login berhasil!');
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const Dashboard()),
+          MaterialPageRoute(
+              builder: (context) =>
+                  const MainScreen()), // Ganti Dashboard ke MainScreen
         );
       } else {
         _showSnackBar('Login gagal. Periksa email dan password Anda!');
@@ -104,28 +107,49 @@ class _LoginState extends State<Login> {
                   ),
                 ),
                 const SizedBox(height: 50),
-                Text("Email", style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500, color: const Color(0xFF074799))),
+                Text("Email",
+                    style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF074799))),
                 TextFormField(
                   controller: _emailController,
-                  validator: (value) => value!.isEmpty ? 'Isi bagian email' : null,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Isi bagian email' : null,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.person, color: Color(0xFF074799)),
+                    prefixIcon:
+                        const Icon(Icons.person, color: Color(0xFF074799)),
                     hintText: "masukkan email",
-                    hintStyle: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey),
-                    border: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    hintStyle: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey),
+                    border: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text("Password", style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w500, color: const Color(0xFF074799))),
+                Text("Password",
+                    style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF074799))),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
-                  validator: (value) => value!.isEmpty ? 'Isi bagian password' : null,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Isi bagian password' : null,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock, color: Color(0xFF074799)),
+                    prefixIcon:
+                        const Icon(Icons.lock, color: Color(0xFF074799)),
                     suffixIcon: IconButton(
-                      icon: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: const Color(0xFF074799)),
+                      icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: const Color(0xFF074799)),
                       onPressed: () {
                         setState(() {
                           _isPasswordVisible = !_isPasswordVisible;
@@ -133,9 +157,14 @@ class _LoginState extends State<Login> {
                       },
                     ),
                     hintText: "masukkan password",
-                    hintStyle: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey),
-                    border: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    hintStyle: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey),
+                    border: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.grey)),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                   ),
                 ),
                 const SizedBox(height: 70),
@@ -146,9 +175,16 @@ class _LoginState extends State<Login> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF074799),
                       padding: const EdgeInsets.symmetric(vertical: 20),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28)),
                     ),
-                    child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text("Login", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.w500, color: Colors.white)),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text("Login",
+                            style: GoogleFonts.poppins(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white)),
                   ),
                 ),
               ],

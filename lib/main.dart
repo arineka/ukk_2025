@@ -1,7 +1,12 @@
+import 'package:coba/history.dart';
 import 'package:coba/login.dart';
-import 'package:coba/dashboard.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:coba/pesanan.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:coba/dashboard.dart';
+import 'package:coba/produk.dart';
+import 'package:coba/pelanggan.dart';
 
 Future<void> main() async {
   await Supabase.initialize(
@@ -15,35 +20,49 @@ Future<void> main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // Menyembunyikan banner debug.
+      debugShowCheckedModeBanner: false,
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3674B5)),
         useMaterial3: true,
       ),
-      home: const Login(),
+      home: const Login(), // Ubah agar pertama kali muncul halaman login
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _MainScreenState extends State<MainScreen> {
+  int _selectedIndex = 0;
 
-  void _incrementCounter() {
+  final List<Widget> _pages = [
+    const Produk(),
+    const Pesanan(), // Bisa diganti dengan halaman pesanan
+    const Riwayat(), // Bisa diganti dengan halaman riwayat    
+    const Pelanggan(),
+    const Dashboard(),
+  ];
+
+  final List<String> _titles = [
+    "Produk",
+    "Pesanan",
+    "Riwayat",
+    "Pelanggan",
+    "User",
+  ];
+
+  void _onItemTapped(int index) {
     setState(() {
-      _counter++;
+      _selectedIndex = index;
     });
   }
 
@@ -51,28 +70,29 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text( 
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+        title: Text(
+          _titles[_selectedIndex],
+          style: GoogleFonts.poppins(
+            fontSize: 24,
+            fontWeight: FontWeight.w500,
+          ),
         ),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_bag_outlined), label: 'Produk'),
+          BottomNavigationBarItem(icon: Icon(Icons.shopping_basket), label: 'Pesanan'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'Riwayat'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Pelanggan'),
+          BottomNavigationBarItem(icon: Icon(Icons.verified_user_rounded), label: 'User'),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: const Color(0xFF3674B5),
+        unselectedItemColor: Colors.grey,
+        onTap: _onItemTapped,
+      ),
     );
   }
 }

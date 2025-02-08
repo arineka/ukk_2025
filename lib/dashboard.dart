@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login.dart';
 
@@ -10,181 +11,275 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  // int _selectedIndex = 3;
-  List<Map<String, dynamic>> _pelangganList = [];
-  final TextEditingController _namaController = TextEditingController();
-  final TextEditingController _alamatController = TextEditingController();
-  final TextEditingController _noTlpController = TextEditingController();
+  List<Map<String, dynamic>> _userList = [];
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _fetchPelangganData();
+    _fetchUserData();
   }
 
-  Future<void> _fetchPelangganData() async {
+  /// 🔹 Ambil Data User dari Supabase
+  Future<void> _fetchUserData() async {
     final supabase = Supabase.instance.client;
 
     try {
       final List<Map<String, dynamic>> data = await supabase
-          .from('pelanggan')
+          .from('user')
           .select()
-          .order('id_pelanggan', ascending: true);
+          .order('id_user', ascending: true);
 
       setState(() {
-        _pelangganList = data;
+        _userList = data;
       });
     } catch (error) {
       print('Error fetching data: $error');
     }
   }
 
-  Future<void> _deletePelanggan(int id) async {
+  /// 🔹 Hapus User dari Database
+  Future<void> _deleteUser(int id) async {
     final supabase = Supabase.instance.client;
 
     try {
-      // Ubah semua transaksi pelanggan ini menjadi NULL sebelum dihapus
-      await supabase
-          .from('penjualan')
-          .update({'pelanggan_id': null}).eq('pelanggan_id', id);
-
-      // Hapus pelanggan setelah transaksi diperbarui
-      await supabase.from('pelanggan').delete().eq('id_pelanggan', id);
+      await supabase.from('user').delete().eq('id_user', id);
 
       setState(() {
-        _pelangganList
-            .removeWhere((pelanggan) => pelanggan['id_pelanggan'] == id);
+        _userList.removeWhere((user) => user['id_user'] == id);
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Pelanggan berhasil dihapus.'),
+          content: Text('User berhasil dihapus.'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (error) {
-      print('Error deleting pelanggan: $error');
+      print('Error deleting user: $error');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Gagal menghapus pelanggan!'),
+          content: Text('Gagal menghapus user!'),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  Future<void> _addPelanggan() async {
+  /// 🔹 Tambah User Baru ke Supabase
+  Future<void> _addUser() async {
     final supabase = Supabase.instance.client;
 
-    // Ambil data dari form
-    final nama = _namaController.text;
-    final alamat = _alamatController.text;
-    final noTlp = _noTlpController.text;
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-    print(
-        'Nama: $nama, Alamat: $alamat, No Telepon: $noTlp'); // Debugging statement
-
-    if (nama.isNotEmpty && alamat.isNotEmpty && noTlp.isNotEmpty) {
+    if (username.isNotEmpty && password.isNotEmpty) {
       try {
-        // Insert data pelanggan baru ke database
-        await supabase.from('pelanggan').insert({
-          'nama_pelanggan': nama,
-          'alamat': alamat,
-          'no_tlp': noTlp,
+        await supabase.from('user').insert({
+          'username': username,
+          'password': password,
         });
 
-        // Perbarui tampilan setelah penambahan
-        _fetchPelangganData();
+        _fetchUserData();
 
-        // Reset form input
-        _namaController.clear();
-        _alamatController.clear();
-        _noTlpController.clear();
+        _usernameController.clear();
+        _passwordController.clear();
 
-        // Tutup form
         Navigator.pop(context);
       } catch (error) {
-        print('Error adding pelanggan: $error');
+        print('Error adding user: $error');
       }
     } else {
-      print('Field tidak boleh kosong!');
+      print('Username dan password tidak boleh kosong!');
     }
   }
 
-  Future<void> _editPelanggan(int id) async {
+  /// Edit User di Supabase
+  Future<void> _editUser(int id) async {
     final supabase = Supabase.instance.client;
 
-    // Ambil data dari form
-    final nama = _namaController.text;
-    final alamat = _alamatController.text;
-    final noTlp = _noTlpController.text;
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
 
-    if (nama.isNotEmpty && alamat.isNotEmpty && noTlp.isNotEmpty) {
+    if (username.isNotEmpty && password.isNotEmpty) {
       try {
-        // Update data pelanggan di database
-        await supabase.from('pelanggan').update({
-          'nama_pelanggan': nama,
-          'alamat': alamat,
-          'no_tlp': noTlp,
-        }).eq('id_pelanggan', id);
+        await supabase.from('user').update({
+          'username': username,
+          'password': password,
+        }).eq('id_user', id);
 
-        // Perbarui tampilan setelah pembaruan
-        _fetchPelangganData();
+        _fetchUserData();
 
-        // Reset form input
-        _namaController.clear();
-        _alamatController.clear();
-        _noTlpController.clear();
+        _usernameController.clear();
+        _passwordController.clear();
 
-        // Tutup form
         Navigator.pop(context);
       } catch (error) {
-        print('Error editing pelanggan: $error');
+        print('Error editing user: $error');
       }
-    } else {
-      print('Field tidak boleh kosong!');
     }
+    // else {
+    //   print('Username dan password tidak boleh kosong!');
+    // }
   }
 
-  // void _logout() {
-  //   Navigator.pushReplacement(
-  //     context,
-  //     MaterialPageRoute(
-  //       builder: (context) => const Lo(),
-  //     ),
-  //   );
-  // }
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: (const Duration(seconds: 2))),
+    );
+  }
+
+  void _showAddUserDialog() {
+    final formKey =
+        GlobalKey<FormState>(); // Tambahkan GlobalKey untuk validasi
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Tambah User'),
+          content: Form(
+            key: formKey, // Gunakan form key
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _usernameController,
+                  decoration: const InputDecoration(labelText: 'Username'),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Username tidak boleh kosong';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(labelText: 'Password'),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Password tidak boleh kosong';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  _addUser();
+                }
+              },
+              child: const Text('Simpan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditUserDialog(Map<String, dynamic> user) {
+    final formKey = GlobalKey<FormState>();
+    bool _obscurePassword = true; // Tambahkan variabel untuk toggle visibility
+
+    _usernameController.text = user['username'] ?? '';
+    _passwordController.text = user['password'] ?? '';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          // Pakai StatefulBuilder agar bisa setState dalam dialog
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Edit User'),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: _usernameController,
+                      decoration: const InputDecoration(labelText: 'Username'),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Username tidak boleh kosong';
+                        }
+                        return null;
+                      },
+                    ),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      obscureText: _obscurePassword, // Gunakan variable toggle
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Password tidak boleh kosong';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Batal'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      _editUser(user['id_user']);
+                    }
+                  },
+                  child: const Text('Simpan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Daftar User',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins',
-            color: Color(0xFF074799),
-          ),
-        ),
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.logout_rounded),
-        //     color: const Color(0xFF074799),
-        //     onPressed: _logout,
-        //   ),
-        // ],
-      ),
+      
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            _pelangganList.isEmpty
+            _userList.isEmpty
                 ? const Expanded(
                     child: Center(
                       child: Text(
@@ -200,9 +295,9 @@ class _DashboardState extends State<Dashboard> {
                 : Expanded(
                     child: ListView.builder(
                       padding: const EdgeInsets.all(0),
-                      itemCount: _pelangganList.length,
+                      itemCount: _userList.length,
                       itemBuilder: (context, index) {
-                        final pelanggan = _pelangganList[index];
+                        final user = _userList[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 10),
                           elevation: 2,
@@ -211,7 +306,7 @@ class _DashboardState extends State<Dashboard> {
                           ),
                           child: ListTile(
                             title: Text(
-                              pelanggan['nama_pelanggan'],
+                              user['username'],
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontFamily: 'Poppins',
@@ -220,10 +315,7 @@ class _DashboardState extends State<Dashboard> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Alamat: ${pelanggan['alamat']}',
-                                    style:
-                                        const TextStyle(fontFamily: 'Poppins')),
-                                Text('No. Telepon: ${pelanggan['no_tlp']}',
+                                Text('Password: ${user['password']}',
                                     style:
                                         const TextStyle(fontFamily: 'Poppins')),
                               ],
@@ -234,15 +326,12 @@ class _DashboardState extends State<Dashboard> {
                                 IconButton(
                                   icon: const Icon(Icons.edit,
                                       color: Colors.blue),
-                                  onPressed: () {
-                                    _showEditPelangganDialog(pelanggan);
-                                  },
+                                  onPressed: () => _showEditUserDialog(user),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete,
                                       color: Colors.red),
-                                  onPressed: () => _deletePelanggan(
-                                      pelanggan['id_pelanggan']),
+                                  onPressed: () => _deleteUser(user['id_user']),
                                 ),
                               ],
                             ),
@@ -256,159 +345,10 @@ class _DashboardState extends State<Dashboard> {
       ),
       // bottomNavigationBar: BottomNavBar(),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddPelangganDialog,
+        onPressed: _showAddUserDialog,
         child: const Icon(Icons.add, color: Colors.white),
         backgroundColor: const Color(0xFF074799),
       ),
     );
   }
-
-  void _showAddPelangganDialog() {
-    final _formKey =
-        GlobalKey<FormState>(); // Tambahkan GlobalKey untuk validasi
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Tambah Pelanggan'),
-          content: Form(
-            key: _formKey, // Gunakan form key
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _namaController,
-                  decoration:
-                      const InputDecoration(labelText: 'Nama Pelanggan'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Nama pelanggan tidak boleh kosong';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _alamatController,
-                  decoration: const InputDecoration(labelText: 'Alamat'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Alamat tidak boleh kosong';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _noTlpController,
-                  decoration: const InputDecoration(labelText: 'No. Telepon'),
-                  keyboardType: TextInputType.phone,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'No. telepon tidak boleh kosong';
-                    } else if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                      return 'No. telepon harus berupa angka';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Batal'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  _addPelanggan();
-                }
-              },
-              child: const Text('Simpan'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showEditPelangganDialog(Map<String, dynamic> pelanggan) {
-    final _formKey = GlobalKey<FormState>();
-
-    _namaController.text = pelanggan['nama_pelanggan'];
-    _alamatController.text = pelanggan['alamat'];
-    _noTlpController.text = pelanggan['no_tlp'];
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Edit Pelanggan'),
-          content: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _namaController,
-                  decoration:
-                      const InputDecoration(labelText: 'Nama Pelanggan'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Nama pelanggan tidak boleh kosong';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _alamatController,
-                  decoration: const InputDecoration(labelText: 'Alamat'),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Alamat tidak boleh kosong';
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _noTlpController,
-                  decoration: const InputDecoration(labelText: 'No. Telepon'),
-                  keyboardType: TextInputType.phone,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'No. telepon tidak boleh kosong';
-                    } else if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                      return 'No. telepon harus berupa angka';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Batal'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  _editPelanggan(pelanggan['id_pelanggan']);
-                }
-              },
-              child: const Text('Simpan'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
 }
-
