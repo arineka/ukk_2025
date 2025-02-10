@@ -115,6 +115,7 @@ class _PelangganState extends State<Pelanggan> {
       _fetchPelangganData();
       _clearFields();
       Navigator.pop(context);
+
     } catch (error) {
       print('Error updating pelanggan: $error');
     }

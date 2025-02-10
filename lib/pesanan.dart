@@ -44,127 +44,169 @@ class _PesananState extends State<Pesanan> {
   }
 
   void _addToCart(Map<String, dynamic> produk, int jumlah) {
-    final existingItemIndex = keranjang
-        .indexWhere((item) => item['produk_id'] == produk['produk_id']);
+    //menambahkan produk ke keranjang
+    // Cek apakah produk sudah ada dalam keranjang
+    final existingItemIndex = keranjang.indexWhere(
+      (item) => item['id_produk'] == produk['id_produk'],
+    );
 
-    // Hitung stok tersisa berdasarkan jumlah produk di keranjang
-    final stokTersisa = produk['stok'] -
-        keranjang
-            .where((item) => item['produk_id'] == produk['produk_id'])
-            .fold<int>(
-                0, (prev, item) => prev + (item['jumlah'] as int)); // Fix here
-
-    if (stokTersisa < jumlah) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Stok tidak mencukupi! Tersisa $stokTersisa')),
-      );
-      return;
+    if (existingItemIndex != -1) {
+      // Jika produk sudah ada, cukup tambahkan jumlahnya
+      final existingItem = keranjang[existingItemIndex];
+      final availableStock = produk['stok'] -
+          existingItem['jumlah']; // Stok sisa setelah menambah jumlah
+      if (availableStock >= jumlah) {
+        setState(() {
+          existingItem['jumlah'] += jumlah;
+          existingItem['subtotal'] = existingItem['jumlah'] * produk['harga'];
+          totalHarga += produk['harga'] * jumlah;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Stok tidak mencukupi untuk menambah jumlah!'),
+        ));
+      }
+    } else {
+      // Jika produk belum ada di keranjang, tambahkan produk baru
+      if (produk['stok'] >= jumlah) {
+        final subtotal = produk['harga'] * jumlah;
+        setState(() {
+          keranjang.add({
+            'id_produk': produk['id_produk'],
+            'nama_produk': produk['nama_produk'],
+            'jumlah': jumlah,
+            'subtotal': subtotal,
+          });
+          totalHarga += subtotal;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Stok tidak mencukupi!'),
+        ));
+      }
     }
 
+    // Update stok produk setelah ditambahkan ke keranjang
+    final updatedStock = produk['stok'] - jumlah;
     setState(() {
-      if (existingItemIndex != -1) {
-        // Jika produk sudah ada di keranjang, tambahkan jumlahnya
-        keranjang[existingItemIndex]['jumlah'] += jumlah;
-        keranjang[existingItemIndex]['subtotal'] =
-            keranjang[existingItemIndex]['jumlah'] * produk['harga'];
-      } else {
-        // Jika produk belum ada di keranjang, tambahkan sebagai item baru
-        keranjang.add({
-          'produk_id': produk['produk_id'],
-          'nama_produk': produk['nama_produk'],
-          'harga': produk['harga'],
-          'jumlah': jumlah,
-          'subtotal': produk['harga'] * jumlah,
-        });
-      }
-
-      // Update total harga
-      totalHarga += produk['harga'] * jumlah;
+      produk['stok'] = updatedStock;
     });
   }
 
   void _removeFromCart(int index) {
     final item = keranjang[index];
+    final produk = produkList.firstWhere(
+      (p) => p['id_produk'] == item['id_produk'],
+      orElse: () => {},
+    );
 
     setState(() {
       if (item['jumlah'] > 1) {
         item['jumlah'] -= 1;
-        item['subtotal'] = item['jumlah'] * item['harga'];
-        totalHarga -= item['harga'];
+        item['subtotal'] = item['jumlah'] * produk['harga'];
+        totalHarga -= produk['harga'];
+
+        // Pastikan stok tidak menjadi negatif
+        produk['stok'] = (produk['stok'] + 1).clamp(0, double.infinity);
       } else {
         totalHarga -= item['subtotal'];
         keranjang.removeAt(index);
+
+        // Kembalikan stok produk yang dihapus dari keranjang
+        produk['stok'] =
+            (produk['stok'] + item['jumlah']).clamp(0, double.infinity);
       }
     });
   }
 
   Future<void> _simpanTransaksi() async {
+    // Pastikan keranjang tidak kosong
     if (keranjang.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Keranjang tidak boleh kosong!')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Keranjang tidak boleh kosong!'),
+      ));
       return;
     }
 
-    final pelanggan = selectedPelanggan ??
+    // Pastikan pelanggan dipilih, jika tidak, gunakan pelanggan default
+    Map<String, dynamic> pelanggan = selectedPelanggan ??
         {
           'id_pelanggan': 0,
-          'nama_pelanggan': 'Anonim',
+          'nama_pelanggan': 'User',
+          'alamat': '-',
+          'no_tlp': '-',
         };
 
     try {
-      final response = await supabase.from('penjualan').insert({
-        'tgl_penjualan': DateTime.now().toIso8601String(),
-        'total_harga': totalHarga,
-        'id_pelanggan': pelanggan['id_pelanggan'],
-      }).select();
+      // Simpan transaksi ke tabel 'penjualan'
+      final response = await supabase.from('penjualan').insert([
+        {
+          'tgl_penjualan': DateTime.now().toIso8601String(),
+          'total_harga': totalHarga,
+          'id_pelanggan':
+              pelanggan['id_pelanggan'] == 0 ? null : pelanggan['id_pelanggan'],
+        }
+      ]).select();
 
       if (response.isNotEmpty) {
-        final penjualanId = response[0]['id_penjualan'];
+        final penjualanId = response[0]['id_penjualan']; // Ambil ID transaksi
 
+        // Simpan detail transaksi ke 'detail_penjualan'
         for (final item in keranjang) {
           await supabase.from('detail_penjualan').insert({
-            'penjualan_id': penjualanId,
-            'produk_id': item['produk_id'],
+            'id_penjualan': penjualanId,
+            'id_produk': item['id_produk'],
             'jumlah_produk': item['jumlah'],
             'subtotal': item['subtotal'],
+            'created_at': DateTime.now().toIso8601String(),
           });
 
-          // Perbarui stok produk di database
-          await supabase.from('produk').update({
-            'stok': Supabase.instance.client.rpc(
-              'kurangi_stok',
-              params: {
-                'produk_id': item['produk_id'],
-                'jumlah': item['jumlah']
-              },
-            )
-          }).eq('produk_id', item['produk_id']);
+          // Perbarui stok produk di tabel 'produk'
+          final produk = produkList.firstWhere(
+            (p) => p['id_produk'] == item['id_produk'],
+            orElse: () => {},
+          );
+
+          if (produk.isNotEmpty) {
+            final stokBaru = produk['stok'] - item['jumlah'];
+            if (stokBaru >= 0) {
+              await supabase.from('produk').update({'stok': stokBaru}).eq(
+                'id_produk',
+                item['id_produk'],
+              );
+            }
+          }
         }
 
+        // Beri notifikasi transaksi berhasil
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaksi berhasil disimpan!')),
+          const SnackBar(
+            content: Text('Transaksi berhasil disimpan!'),
+            duration: Duration(seconds: 1),
+          ),
         );
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const Riwayat()),
-        );
-
+        // Reset keranjang setelah transaksi sukses
         setState(() {
           keranjang.clear();
           totalHarga = 0.0;
           selectedPelanggan = null;
         });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal menyimpan transaksi.')),
+
+        // Navigasi ke halaman Riwayat
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const Riwayat()),
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Gagal menyimpan transaksi.'),
+        ));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terjadi kesalahan: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Terjadi kesalahan: $e'),
+      ));
     }
   }
 
@@ -216,29 +258,75 @@ class _PesananState extends State<Pesanan> {
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
-                itemCount: keranjang.length,
+                itemCount:
+                    keranjang.length, // Jumlah item yang ada di keranjang
                 itemBuilder: (context, index) {
-                  final item = keranjang[index];
+                  final item = keranjang[index]; // Ambil item berdasarkan index
+                  final produkId = item['id_produk']; // ID produk
+                  final produk = produkList.firstWhere(
+                    (p) => p['id_produk'] == produkId,
+                    orElse: () =>
+                        {'harga': 0}, // Jika tidak ditemukan, gunakan harga 0
+                  );
+                  final harga =
+                      produk['harga'] ?? 0; // Menggunakan harga produk
+                  final jumlah = item['jumlah'] ??
+                      0; // Menggunakan jumlah default 0 jika null
+                  final subtotal =
+                      harga * jumlah; // Menghitung subtotal setiap item
+
+                  // Update subtotal untuk setiap item
+                  item['subtotal'] = subtotal;
+
                   return ListTile(
-                    title: Text(item['nama_produk']),
+                    title: Text(item['nama_produk']), // Nama produk
                     subtitle: Text(
-                        'Jumlah: ${item['jumlah']} | Subtotal: Rp${item['subtotal']}'),
+                      'Jumlah: $jumlah | Subtotal: Rp${subtotal.toStringAsFixed(0)}',
+                      style: GoogleFonts.poppins(fontSize: 14),
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // Tombol untuk mengurangi jumlah produk
                         IconButton(
-                          icon: const Icon(Icons.remove_circle,
-                              color: Colors.red),
-                          onPressed: () => _removeFromCart(index),
-                        ),
-                        Text(item['jumlah'].toString()),
-                        IconButton(
-                          icon:
-                              const Icon(Icons.add_circle, color: Colors.green),
+                          icon: const Icon(Icons.remove, color: Colors.red),
                           onPressed: () {
-                            final produk = produkList.firstWhere(
-                                (p) => p['produk_id'] == item['produk_id']);
-                            _addToCart(produk, 1);
+                            setState(() {
+                              if (item['jumlah'] > 1) {
+                                item['jumlah']--;
+                                item['subtotal'] =
+                                    item['jumlah'] * harga; // Update subtotal
+                                totalHarga -= harga; // Update totalHarga
+                              } else {
+                                totalHarga -=
+                                    item['subtotal']; // Kurangi total harga
+                                keranjang.removeAt(
+                                    index); // Hapus item jika jumlah = 0
+                              }
+                            });
+                          },
+                        ),
+                        // Menampilkan jumlah produk
+                        Text(item['jumlah'].toString()),
+                        // Tombol untuk menambah jumlah produk
+                        IconButton(
+                          icon: const Icon(Icons.add, color: Colors.green),
+                          onPressed: () {
+                            final stokProduk =
+                                produk['stok'] ?? 0; // Cek stok produk
+                            if (item['jumlah'] < stokProduk) {
+                              setState(() {
+                                item['jumlah']++;
+                                item['subtotal'] =
+                                    item['jumlah'] * harga; // Update subtotal
+                                totalHarga += harga; // Update totalHarga
+                              });
+                            } else {
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(const SnackBar(
+                                content: Text('Stok tidak mencukupi!'),
+                              ));
+                            }
                           },
                         ),
                       ],

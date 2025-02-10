@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'login.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -189,7 +187,7 @@ class _DashboardState extends State<Dashboard> {
 
   void _showEditUserDialog(Map<String, dynamic> user) {
     final formKey = GlobalKey<FormState>();
-    bool _obscurePassword = true; // Tambahkan variabel untuk toggle visibility
+    bool obscurePassword = true; // Tambahkan variabel untuk toggle visibility
 
     _usernameController.text = user['username'] ?? '';
     _passwordController.text = user['password'] ?? '';
@@ -223,18 +221,18 @@ class _DashboardState extends State<Dashboard> {
                         labelText: 'Password',
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword
+                            obscurePassword
                                 ? Icons.visibility_off
                                 : Icons.visibility,
                           ),
                           onPressed: () {
                             setState(() {
-                              _obscurePassword = !_obscurePassword;
+                              obscurePassword = !obscurePassword;
                             });
                           },
                         ),
                       ),
-                      obscureText: _obscurePassword, // Gunakan variable toggle
+                      obscureText: obscurePassword, // Gunakan variable toggle
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Password tidak boleh kosong';
@@ -346,8 +344,8 @@ class _DashboardState extends State<Dashboard> {
       // bottomNavigationBar: BottomNavBar(),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddUserDialog,
-        child: const Icon(Icons.add, color: Colors.white),
         backgroundColor: const Color(0xFF074799),
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
