@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -266,11 +267,35 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  void _confirmDeleteUser(int id) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Konfirmasi Hapus"),
+          content: const Text("Apakah Anda yakin ingin menghapus user ini?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), // Tutup dialog
+              child: const Text("Batal"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Tutup dialog
+                _deleteUser(id); // Lanjutkan penghapusan
+              },
+              child: const Text("Hapus", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
-      
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -278,13 +303,13 @@ class _DashboardState extends State<Dashboard> {
           children: [
             const SizedBox(height: 16),
             _userList.isEmpty
-                ? const Expanded(
+                ? Expanded(
                     child: Center(
                       child: Text(
                         'Belum ada User',
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(
                           fontSize: 16,
-                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w500,
                           color: Colors.grey,
                         ),
                       ),
@@ -305,31 +330,31 @@ class _DashboardState extends State<Dashboard> {
                           child: ListTile(
                             title: Text(
                               user['username'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Poppins',
-                              ),
+                              style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF091057)),
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Password: ${user['password']}',
-                                    style:
-                                        const TextStyle(fontFamily: 'Poppins')),
-                              ],
-                            ),
+                            // subtitle: Text(
+                            //   'Password: ${user['password']}',
+                            //   style: GoogleFonts.poppins(
+                            //     fontSize: 14,
+                            //     color: Color(0xFFEC8305),
+                            //   ),
+                            // ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.edit,
-                                      color: Colors.blue),
+                                      color: Color(0xFF091057)),
                                   onPressed: () => _showEditUserDialog(user),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete,
                                       color: Colors.red),
-                                  onPressed: () => _deleteUser(user['id_user']),
+                                  onPressed: () =>
+                                      _confirmDeleteUser(user['id_user']),
                                 ),
                               ],
                             ),
@@ -341,10 +366,9 @@ class _DashboardState extends State<Dashboard> {
           ],
         ),
       ),
-      // bottomNavigationBar: BottomNavBar(),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddUserDialog,
-        backgroundColor: const Color(0xFF074799),
+        backgroundColor: const Color(0xFF091057),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

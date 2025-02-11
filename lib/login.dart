@@ -51,8 +51,8 @@ class _LoginState extends State<Login> {
         // Navigasi ke halaman MainScreen setelah login sukses.
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-              builder: (context) =>
-                  const MainScreen()), // Ganti Dashboard ke MainScreen
+            builder: (context) => const MainScreen(selectedIndex: 1),
+          ),
         );
       } else {
         _showSnackBar(
@@ -95,7 +95,7 @@ class _LoginState extends State<Login> {
                   style: GoogleFonts.poppins(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF3674B5),
+                    color: const Color(0xFF091057),
                   ),
                 ),
                 const SizedBox(height: 5), // Jarak antara teks.
@@ -107,15 +107,15 @@ class _LoginState extends State<Login> {
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
-                          color: Colors.grey,
+                          color: const Color(0xFFDBD3D3),
                         ),
                       ),
                       TextSpan(
-                        text: 'Kasir',
+                        text: 'Kasir.in',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: const Color(0xFFEC8305),
                         ),
                       ),
                     ],
@@ -151,7 +151,6 @@ class _LoginState extends State<Login> {
                 ),
 
                 const SizedBox(height: 20),
-
                 // Label dan input untuk password.
                 Text("Password",
                     style: GoogleFonts.poppins(
@@ -205,7 +204,7 @@ class _LoginState extends State<Login> {
                         ? null
                         : _login, // Menjalankan fungsi login saat tombol ditekan.
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF074799),
+                      backgroundColor: const Color(0xFF091057),
                       padding: const EdgeInsets.symmetric(vertical: 20),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28)),

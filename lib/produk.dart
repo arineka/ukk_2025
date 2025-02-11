@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class Produk extends StatefulWidget {
   const Produk({super.key});
@@ -60,14 +61,12 @@ class _ProdukState extends State<Produk> {
 
 // Fungsi untuk menambahkan produk ke dalam database Supabase
   Future<void> _addProduk() async {
-    final supabase = Supabase.instance.client; // Mengakses instance Supabase
+    final supabase = Supabase.instance.client;
 
-    // Mengambil nilai dari input pengguna
-    final namaProduk = _namaProdukController.text;
+    final namaProduk = _namaProdukController.text.trim();
     final harga = int.tryParse(_hargaController.text) ?? 0;
     final stok = int.tryParse(_stokController.text) ?? 0;
 
-    // Validasi input: Pastikan semua field terisi dengan benar
     if (namaProduk.isEmpty || harga <= 0 || stok <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -75,29 +74,44 @@ class _ProdukState extends State<Produk> {
           backgroundColor: Colors.red,
         ),
       );
-      return; // Menghentikan proses jika input tidak valid
+      return;
     }
 
     try {
-      // Menambahkan produk baru ke dalam tabel 'produk'
+      // **Cek apakah nama produk sudah ada di database**
+      final List<Map<String, dynamic>> existingProduk =
+          await supabase.from('produk').select().eq('nama_produk', namaProduk);
+
+      if (existingProduk.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Produk dengan nama ini sudah ada!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return; // **Hentikan proses insert jika produk sudah ada**
+      }
+
+      // Jika produk belum ada, tambahkan ke database
       await supabase.from('produk').insert({
         'nama_produk': namaProduk,
         'harga': harga,
         'stok': stok,
       });
 
-      // Memanggil kembali fungsi _fetchProdukData untuk memperbarui daftar produk
-      _fetchProdukData();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Produk berhasil ditambahkan!'),
+          backgroundColor: Colors.green,
+        ),
+      );
 
-      // Mengosongkan input setelah berhasil menambahkan produk
+      _fetchProdukData();
       _namaProdukController.clear();
       _hargaController.clear();
       _stokController.clear();
-
-      // Menutup dialog atau layar setelah produk berhasil ditambahkan
       Navigator.pop(context);
     } catch (error) {
-      // Menampilkan error jika gagal menambahkan produk
       print('Error adding produk: $error');
     }
   }
@@ -146,30 +160,56 @@ class _ProdukState extends State<Produk> {
     }
   }
 
-// Fungsi untuk menghapus produk berdasarkan ID
+  // Fungsi untuk menghapus produk berdasarkan ID dengan konfirmasi
   Future<void> _deleteProduk(int id) async {
     final supabase = Supabase.instance.client; // Mengakses instance Supabase
 
-    try {
-      // Menghapus produk dari tabel 'produk' berdasarkan ID yang diberikan
-      await supabase.from('produk').delete().eq('id_produk', id);
+    // Menampilkan dialog konfirmasi sebelum menghapus
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Konfirmasi Hapus"),
+          content: const Text("Apakah Anda yakin ingin menghapus produk ini?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Tutup dialog tanpa menghapus
+              },
+              child: const Text("Batal"),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context); // Tutup dialog sebelum menghapus
+                try {
+                  // Menghapus produk dari database Supabase berdasarkan ID
+                  await supabase.from('produk').delete().eq('id_produk', id);
 
-      // Menghapus produk dari daftar yang ditampilkan di UI secara lokal
-      setState(() {
-        _produkList.removeWhere((produk) => produk['id_produk'] == id);
-      });
+                  // Menghapus produk dari daftar UI secara lokal
+                  setState(() {
+                    _produkList
+                        .removeWhere((produk) => produk['id_produk'] == id);
+                    _filteredProdukList
+                        .removeWhere((produk) => produk['id_produk'] == id);
+                  });
 
-      // Menampilkan pesan sukses kepada pengguna
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Produk berhasil dihapus.'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (error) {
-      // Menampilkan error jika gagal menghapus produk
-      print('Error deleting produk: $error');
-    }
+                  // Menampilkan pesan sukses kepada pengguna
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Produk berhasil dihapus.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (error) {
+                  print('Error deleting produk: $error');
+                }
+              },
+              child: const Text("Hapus", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _showAddProdukDialog() {
@@ -304,7 +344,12 @@ class _ProdukState extends State<Produk> {
               onChanged: _searchProduk,
               decoration: InputDecoration(
                 labelText: 'Cari Produk',
-                prefixIcon: const Icon(Icons.search),
+                labelStyle:
+                    GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Color(0xFF091057),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -313,12 +358,12 @@ class _ProdukState extends State<Produk> {
             const SizedBox(height: 10),
             Expanded(
               child: _filteredProdukList.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Produk tidak ditemukan',
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(
                           fontSize: 16,
-                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w500,
                           color: Colors.grey,
                         ),
                       ),
@@ -337,24 +382,25 @@ class _ProdukState extends State<Produk> {
                             contentPadding: const EdgeInsets.all(12),
                             title: Text(
                               produk['nama_produk'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Poppins',
-                                fontSize: 18,
-                              ),
+                              style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF091057)),
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Harga: ${produk['harga']}',
-                                  style: const TextStyle(fontFamily: 'Poppins'),
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: const Color(0xFFEC8305)),
                                 ),
                                 Text(
                                   'Stok: ${produk['stok']}',
-                                  style: const TextStyle(
-                                    fontFamily: 'Poppins',
-                                    color: Colors.grey,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: const Color(0xFF024CAA),
                                   ),
                                 ),
                               ],
@@ -364,13 +410,13 @@ class _ProdukState extends State<Produk> {
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.edit,
-                                      color: Colors.blue),
+                                      color: Color(0xFF091057)),
                                   onPressed: () => _showEditProdukDialog(
                                       produk['id_produk']),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete,
-                                      color: Colors.red),
+                                      color: Color(0xFFF44336)),
                                   onPressed: () =>
                                       _deleteProduk(produk['id_produk']),
                                 ),
@@ -386,7 +432,7 @@ class _ProdukState extends State<Produk> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddProdukDialog,
-        backgroundColor: const Color(0xFF074799),
+        backgroundColor: const Color(0xFF091057),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );

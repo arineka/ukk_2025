@@ -43,7 +43,8 @@ class MyApp extends StatelessWidget {
 
 // Kelas untuk tampilan utama setelah login berhasil
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int selectedIndex;
+  const MainScreen({super.key, this.selectedIndex = 0}); // Default index = 0
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -51,7 +52,13 @@ class MainScreen extends StatefulWidget {
 
 // State untuk MainScreen
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0; // Indeks halaman yang sedang aktif
+  late int _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.selectedIndex; // Menggunakan nilai dari parameter
+  }
 
   // Daftar halaman yang bisa ditampilkan dalam bottom navigation bar
   final List<Widget> _pages = [
@@ -64,7 +71,7 @@ class _MainScreenState extends State<MainScreen> {
 
   // Daftar judul untuk setiap halaman
   final List<String> _titles = [
-    "Produk",
+    "Kasir.in",
     "Pesanan",
     "Riwayat",
     "Pelanggan",
@@ -93,49 +100,58 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _titles[_selectedIndex], // Menampilkan judul sesuai halaman aktif
-          style: GoogleFonts.poppins(
-            // Menggunakan font Poppins
-            fontSize: 24,
-            fontWeight: FontWeight.w500,
-          ),
+          _selectedIndex == 0 ? "Kasir.in" : _titles[_selectedIndex],
+          style: _selectedIndex == 0
+              ? GoogleFonts.poppins(
+                  fontSize: 26, // Ukuran lebih besar untuk halaman Produk
+                  fontWeight: FontWeight.bold,
+                  color: const Color(
+                      0xFFEC8305), // Warna khusus untuk halaman Produk
+                )
+              : GoogleFonts.poppins( // Style default untuk halaman lain
+                  fontSize: 24, 
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF024CAA), // Warna default
+                ),
         ),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+
+        backgroundColor: Colors.transparent, // Membuat AppBar transparan
+        elevation: 0, // Menghilangkan bayangan AppBar
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout, color: Color.fromARGB(255, 41, 83, 128),), // Tambahkan ikon logout
+            icon: const Icon(
+              Icons.logout,
+              color: Color(0xFF091057),
+            ),
             onPressed: _logout,
             tooltip: "Logout",
           ),
         ],
-        // backgroundColor: Theme.of(context)
-        //     .colorScheme
-        //     .inversePrimary, // Warna latar belakang AppBar
       ),
       body: _pages[
           _selectedIndex], // Menampilkan halaman sesuai indeks yang dipilih
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_bag_outlined),
-              label: 'Produk'), // Item untuk Produk
+            icon: Icon(Icons.shopping_bag_outlined),
+            label: 'Produk'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_basket),
-              label: 'Pesanan'), // Item untuk Pesanan
+            icon: Icon(Icons.shopping_basket),
+            label: 'Pesanan'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.history),
-              label: 'Riwayat'), // Item untuk Riwayat
+            icon: Icon(Icons.history),
+            label: 'Riwayat'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.people),
-              label: 'Pelanggan'), // Item untuk Pelanggan
+            icon: Icon(Icons.people),
+            label: 'Pelanggan'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_outlined),
-              label: 'User'), // Item untuk User
+            icon: Icon(Icons.person_outline_outlined),
+            label: 'User'),
         ],
-        currentIndex: _selectedIndex, // Menandai item yang sedang aktif
-        selectedItemColor: const Color(0xFF3674B5), // Warna item yang dipilih
-        unselectedItemColor: Colors.grey, // Warna item yang tidak dipilih
-        onTap: _onItemTapped, // Memanggil fungsi saat item diklik
+        currentIndex: _selectedIndex,
+        selectedItemColor: const Color(0xFF091057),
+        unselectedItemColor: Colors.grey,
+        onTap: _onItemTapped,
       ),
     );
   }

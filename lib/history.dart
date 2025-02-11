@@ -61,7 +61,10 @@ class _RiwayatState extends State<Riwayat> {
   Future<void> deleteRiwayat(int idPenjualan) async {
     try {
       final supabase = Supabase.instance.client;
-      await supabase.from('detail_penjualan').delete().eq('id_penjualan', idPenjualan);
+      await supabase
+          .from('detail_penjualan')
+          .delete()
+          .eq('id_penjualan', idPenjualan);
       await supabase.from('penjualan').delete().eq('id_penjualan', idPenjualan);
       refreshRiwayat();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,6 +77,34 @@ class _RiwayatState extends State<Riwayat> {
     }
   }
 
+  void confirmDeleteRiwayat(int idPenjualan) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Konfirmasi Hapus'),
+          content: const Text(
+              'Apakah Anda yakin ingin menghapus riwayat transaksi ini?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Tutup dialog
+              },
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Tutup dialog sebelum menghapus
+                deleteRiwayat(idPenjualan); // Panggil fungsi hapus
+              },
+              child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,7 +112,23 @@ class _RiwayatState extends State<Riwayat> {
       body: RefreshIndicator(
         onRefresh: refreshRiwayat,
         child: transaksiList.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // const Icon(Icons.history, size: 80, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Belum ada riwayat transaksi',
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              )
             : ListView.builder(
                 padding: const EdgeInsets.all(12),
                 itemCount: transaksiList.length,
@@ -110,7 +157,7 @@ class _RiwayatState extends State<Riwayat> {
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF074799),
+                              color: const Color(0xFF091057),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -129,7 +176,7 @@ class _RiwayatState extends State<Riwayat> {
                                 style: GoogleFonts.poppins(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.green,
+                                  color: const Color(0xFFEC8305),
                                 ),
                               ),
                             ],
@@ -148,7 +195,8 @@ class _RiwayatState extends State<Riwayat> {
                                   : 'Produk tidak ditemukan';
 
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -158,6 +206,7 @@ class _RiwayatState extends State<Riwayat> {
                                         style: GoogleFonts.poppins(
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold,
+                                          color: const Color(0xFF091057),
                                         ),
                                       ),
                                     Text(
@@ -168,7 +217,7 @@ class _RiwayatState extends State<Riwayat> {
                                       ),
                                     ),
                                     Text(
-                                      'Total : Rp ${detail['subtotal'].toDouble().toStringAsFixed(0)}',
+                                      'Subtotal : Rp ${detail['subtotal'].toDouble().toStringAsFixed(0)}',
                                       style: GoogleFonts.poppins(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
@@ -182,7 +231,8 @@ class _RiwayatState extends State<Riwayat> {
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton.icon(
-                            onPressed: () => deleteRiwayat(penjualan['id_penjualan']),
+                            onPressed: () =>
+                                confirmDeleteRiwayat(penjualan['id_penjualan']),
                             icon: const Icon(Icons.delete),
                             label: const Text('Hapus Riwayat'),
                             style: ElevatedButton.styleFrom(

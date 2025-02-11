@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class Pelanggan extends StatefulWidget {
   const Pelanggan({super.key});
@@ -80,11 +81,35 @@ class _PelangganState extends State<Pelanggan> {
     final noTlp = _noTlpController.text.trim();
 
     try {
+      // Cek apakah data pelanggan sudah ada
+      final List<Map<String, dynamic>> existingPelanggan = await supabase
+          .from('pelanggan')
+          .select()
+          .or('nama_pelanggan.eq.$namaPelanggan,no_tlp.eq.$noTlp');
+
+      if (existingPelanggan.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data pelanggan sudah ada!'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return; // Hentikan proses insert jika data sudah ada
+      }
+
+      // Jika pelanggan belum ada, tambahkan pelanggan baru
       await supabase.from('pelanggan').insert({
         'nama_pelanggan': namaPelanggan,
         'alamat': alamat,
         'no_tlp': noTlp,
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pelanggan berhasil ditambahkan!'),
+          backgroundColor: Colors.green,
+        ),
+      );
 
       _fetchPelangganData();
       _clearFields();
@@ -112,10 +137,16 @@ class _PelangganState extends State<Pelanggan> {
         'no_tlp': noTlp,
       }).eq('id_pelanggan', id);
 
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pelanggan berhasil diperbarui!'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
       _fetchPelangganData();
       _clearFields();
       Navigator.pop(context);
-
     } catch (error) {
       print('Error updating pelanggan: $error');
     }
@@ -182,12 +213,21 @@ class _PelangganState extends State<Pelanggan> {
                 ),
                 TextFormField(
                   controller: _noTlpController,
-                  decoration: const InputDecoration(labelText: "No. Telp"),
+                  decoration: const InputDecoration(
+                    labelText: "No. Telp",
+                    counterText: "", // Menghilangkan counter bawaan
+                  ),
                   keyboardType: TextInputType.phone,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 13, // Batas maksimal 13 angka
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly
+                  ], // Hanya angka
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'No. Telp tidak boleh kosong';
+                    }
+                    if (value.length > 13) {
+                      return 'No. Telp maksimal 13 angka';
                     }
                     return null;
                   },
@@ -210,6 +250,33 @@ class _PelangganState extends State<Pelanggan> {
     );
   }
 
+  void _confirmDeletePelanggan(int id) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Konfirmasi Hapus"),
+          content:
+              const Text("Apakah Anda yakin ingin menghapus pelanggan ini?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context), // Tutup dialog
+              child: const Text("Batal"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Tutup dialog
+                _deletePelanggan(id); // Hapus pelanggan
+              },
+              // style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text("Hapus", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -222,6 +289,8 @@ class _PelangganState extends State<Pelanggan> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: "Cari pelanggan...",
+                hintStyle:
+                    GoogleFonts.poppins(fontSize: 16, color: Colors.grey),
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -231,12 +300,12 @@ class _PelangganState extends State<Pelanggan> {
             const SizedBox(height: 10),
             Expanded(
               child: _filteredPelangganList.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         'Belum ada Pelanggan',
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(
                           fontSize: 16,
-                          fontFamily: 'Poppins',
+                          fontWeight: FontWeight.w500,
                           color: Colors.grey,
                         ),
                       ),
@@ -255,26 +324,26 @@ class _PelangganState extends State<Pelanggan> {
                             contentPadding: const EdgeInsets.all(12),
                             title: Text(
                               pelanggan['nama_pelanggan'],
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontFamily: 'Poppins',
-                                fontSize: 18,
-                              ),
+                              style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF091057)),
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
                                   'Alamat: ${pelanggan['alamat']}',
-                                  style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      color: Colors.grey),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    color: const Color(0xFF024CAA),
+                                  ),
                                 ),
                                 Text(
                                   'No. Telp: ${pelanggan['no_tlp']}',
-                                  style: const TextStyle(
-                                      fontFamily: 'Poppins',
-                                      color: Colors.grey),
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      color: const Color(0xFFEC8305)),
                                 ),
                               ],
                             ),
@@ -283,14 +352,14 @@ class _PelangganState extends State<Pelanggan> {
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.edit,
-                                      color: Colors.blue),
+                                      color: Color(0xFF091057)),
                                   onPressed: () => _showPelangganDialog(
                                       id: pelanggan['id_pelanggan']),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete,
                                       color: Colors.red),
-                                  onPressed: () => _deletePelanggan(
+                                  onPressed: () => _confirmDeletePelanggan(
                                       pelanggan['id_pelanggan']),
                                 ),
                               ],
@@ -305,8 +374,8 @@ class _PelangganState extends State<Pelanggan> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showPelangganDialog(),
+        backgroundColor: const Color(0xFF091057),
         child: const Icon(Icons.add, color: Colors.white),
-        backgroundColor: const Color(0xFF074799),
       ),
     );
   }

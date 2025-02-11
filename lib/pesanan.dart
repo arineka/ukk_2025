@@ -1,7 +1,12 @@
 import 'package:coba/history.dart';
+import 'package:coba/main.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 class Pesanan extends StatefulWidget {
   const Pesanan({Key? key}) : super(key: key);
@@ -44,18 +49,17 @@ class _PesananState extends State<Pesanan> {
   }
 
   void _addToCart(Map<String, dynamic> produk, int jumlah) {
-    //menambahkan produk ke keranjang
-    // Cek apakah produk sudah ada dalam keranjang
+    // Cari produk di dalam keranjang
     final existingItemIndex = keranjang.indexWhere(
       (item) => item['id_produk'] == produk['id_produk'],
     );
 
     if (existingItemIndex != -1) {
-      // Jika produk sudah ada, cukup tambahkan jumlahnya
+      // Jika produk sudah ada dalam keranjang, tambahkan jumlahnya
       final existingItem = keranjang[existingItemIndex];
-      final availableStock = produk['stok'] -
-          existingItem['jumlah']; // Stok sisa setelah menambah jumlah
-      if (availableStock >= jumlah) {
+      final totalJumlahSetelahTambah = existingItem['jumlah'] + jumlah;
+
+      if (totalJumlahSetelahTambah <= produk['stok']) {
         setState(() {
           existingItem['jumlah'] += jumlah;
           existingItem['subtotal'] = existingItem['jumlah'] * produk['harga'];
@@ -67,8 +71,8 @@ class _PesananState extends State<Pesanan> {
         ));
       }
     } else {
-      // Jika produk belum ada di keranjang, tambahkan produk baru
-      if (produk['stok'] >= jumlah) {
+      // Jika produk belum ada di keranjang
+      if (jumlah <= produk['stok']) {
         final subtotal = produk['harga'] * jumlah;
         setState(() {
           keranjang.add({
@@ -85,13 +89,13 @@ class _PesananState extends State<Pesanan> {
         ));
       }
     }
-
-    // Update stok produk setelah ditambahkan ke keranjang
-    final updatedStock = produk['stok'] - jumlah;
-    setState(() {
-      produk['stok'] = updatedStock;
-    });
   }
+
+  // Update stok produk setelah ditambahkan ke keranjang
+  // final updatedStock = produk['stok'] - jumlah;
+  // setState(() {
+  //   produk['stok'] = updatedStock;
+  // });
 
   void _removeFromCart(int index) {
     final item = keranjang[index];
@@ -120,15 +124,13 @@ class _PesananState extends State<Pesanan> {
   }
 
   Future<void> _simpanTransaksi() async {
-    // Pastikan keranjang tidak kosong
     if (keranjang.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Keranjang tidak boleh kosong!'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Keranjang tidak boleh kosong!')),
+      );
       return;
     }
 
-    // Pastikan pelanggan dipilih, jika tidak, gunakan pelanggan default
     Map<String, dynamic> pelanggan = selectedPelanggan ??
         {
           'id_pelanggan': 0,
@@ -138,7 +140,6 @@ class _PesananState extends State<Pesanan> {
         };
 
     try {
-      // Simpan transaksi ke tabel 'penjualan'
       final response = await supabase.from('penjualan').insert([
         {
           'tgl_penjualan': DateTime.now().toIso8601String(),
@@ -149,9 +150,8 @@ class _PesananState extends State<Pesanan> {
       ]).select();
 
       if (response.isNotEmpty) {
-        final penjualanId = response[0]['id_penjualan']; // Ambil ID transaksi
+        final penjualanId = response[0]['id_penjualan'];
 
-        // Simpan detail transaksi ke 'detail_penjualan'
         for (final item in keranjang) {
           await supabase.from('detail_penjualan').insert({
             'id_penjualan': penjualanId,
@@ -161,53 +161,198 @@ class _PesananState extends State<Pesanan> {
             'created_at': DateTime.now().toIso8601String(),
           });
 
-          // Perbarui stok produk di tabel 'produk'
-          final produk = produkList.firstWhere(
-            (p) => p['id_produk'] == item['id_produk'],
-            orElse: () => {},
-          );
-
-          if (produk.isNotEmpty) {
-            final stokBaru = produk['stok'] - item['jumlah'];
-            if (stokBaru >= 0) {
-              await supabase.from('produk').update({'stok': stokBaru}).eq(
-                'id_produk',
-                item['id_produk'],
-              );
-            }
-          }
+          await supabase.from('produk').update({
+            'stok': produkList.firstWhere(
+                  (p) => p['id_produk'] == item['id_produk'],
+                )['stok'] -
+                item['jumlah']
+          }).eq('id_produk', item['id_produk']);
         }
 
-        // Beri notifikasi transaksi berhasil
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Transaksi berhasil disimpan!'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-
-        // Reset keranjang setelah transaksi sukses
-        setState(() {
-          keranjang.clear();
-          totalHarga = 0.0;
-          selectedPelanggan = null;
-        });
-
-        // Navigasi ke halaman Riwayat
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Riwayat()),
-        );
-      } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Gagal menyimpan transaksi.'),
+          content: Text('Transaksi berhasil disimpan!'),
         ));
+
+        _showReceiptDialog(context, penjualanId, keranjang, totalHarga,
+            pelanggan['nama_pelanggan']);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Terjadi kesalahan: $e'),
       ));
     }
+  }
+
+  void _showReceiptDialog(
+      BuildContext context,
+      int penjualanId,
+      List<Map<String, dynamic>> keranjang,
+      double totalHarga,
+      String pelanggan) {
+    final currencyFormat =
+        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Center(
+            child: Text(
+              "Struk Pembelian",
+              style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87),
+            ),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Pelanggan: $pelanggan",
+                  style:
+                      GoogleFonts.poppins(fontSize: 14, color: Colors.black87),
+                ),
+                const Divider(thickness: 1, height: 20),
+                ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: keranjang.length,
+                  itemBuilder: (context, index) {
+                    final item = keranjang[index];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              "${item['nama_produk']} x${item['jumlah']}",
+                              style: GoogleFonts.poppins(
+                                  fontSize: 14, color: Colors.black87),
+                            ),
+                          ),
+                          Text(
+                            currencyFormat.format(item['subtotal']),
+                            style: GoogleFonts.poppins(
+                                fontSize: 14, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                const Divider(thickness: 1, height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Total",
+                      style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87),
+                    ),
+                    Text(
+                      currencyFormat.format(totalHarga),
+                      style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton.icon(
+              onPressed: () {
+                _generatePDF(penjualanId, pelanggan, keranjang, totalHarga);
+              },
+              icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              label:
+                  Text("Simpan PDF", style: GoogleFonts.poppins(fontSize: 14)),
+            ),
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const MainScreen(selectedIndex: 2)),
+                );
+              },
+              icon: const Icon(Icons.history, color: Colors.blue),
+              label: Text("Lihat Riwayat",
+                  style: GoogleFonts.poppins(fontSize: 14)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _generatePDF(int penjualanId, String pelanggan,
+      List<Map<String, dynamic>> keranjang, double totalHarga) async {
+    final pdf = pw.Document();
+    final currencyFormat =
+        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Center(
+                child: pw.Text("Struk Pembelian",
+                    style: pw.TextStyle(
+                        fontSize: 24, fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Text("ID Penjualan: $penjualanId",
+                  style: pw.TextStyle(fontSize: 14)),
+              pw.Text("Pelanggan: $pelanggan",
+                  style: pw.TextStyle(fontSize: 14)),
+              pw.SizedBox(height: 10),
+              pw.Divider(),
+              pw.Column(
+                children: keranjang.map((item) {
+                  return pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text("${item['nama_produk']} x${item['jumlah']}",
+                          style: pw.TextStyle(fontSize: 14)),
+                      pw.Text(currencyFormat.format(item['subtotal']),
+                          style: pw.TextStyle(fontSize: 14)),
+                    ],
+                  );
+                }).toList(),
+              ),
+              pw.Divider(),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text("Total",
+                      style: pw.TextStyle(
+                          fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(currencyFormat.format(totalHarga),
+                      style: pw.TextStyle(
+                          fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save());
   }
 
   @override
@@ -220,13 +365,18 @@ class _PesananState extends State<Pesanan> {
             DropdownButtonFormField<int>(
               decoration: InputDecoration(
                 labelText: 'Pilih Pelanggan',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                labelStyle: GoogleFonts.poppins(fontSize: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               items: pelangganList.map((pelanggan) {
                 return DropdownMenuItem<int>(
                   value: pelanggan['id_pelanggan'],
-                  child: Text(pelanggan['nama_pelanggan']),
+                  child: Text(
+                    pelanggan['nama_pelanggan'],
+                    style: GoogleFonts.poppins(fontSize: 14),
+                  ),
                 );
               }).toList(),
               onChanged: (value) {
@@ -241,14 +391,18 @@ class _PesananState extends State<Pesanan> {
             DropdownButtonFormField<Map<String, dynamic>>(
               decoration: InputDecoration(
                 labelText: 'Pilih Produk',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                labelStyle: GoogleFonts.poppins(fontSize: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               items: produkList.map((produk) {
                 return DropdownMenuItem(
                   value: produk,
                   child: Text(
-                      '${produk['nama_produk']} (Stok: ${produk['stok']})'),
+                    '${produk['nama_produk']} (Stok: ${produk['stok']})',
+                    style: GoogleFonts.poppins(fontSize: 14),
+                  ),
                 );
               }).toList(),
               onChanged: (value) {
@@ -258,74 +412,74 @@ class _PesananState extends State<Pesanan> {
             const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
-                itemCount:
-                    keranjang.length, // Jumlah item yang ada di keranjang
+                itemCount: keranjang.length,
                 itemBuilder: (context, index) {
-                  final item = keranjang[index]; // Ambil item berdasarkan index
-                  final produkId = item['id_produk']; // ID produk
+                  final item = keranjang[index];
+                  final produkId = item['id_produk'];
                   final produk = produkList.firstWhere(
                     (p) => p['id_produk'] == produkId,
-                    orElse: () =>
-                        {'harga': 0}, // Jika tidak ditemukan, gunakan harga 0
+                    orElse: () => {'harga': 0},
                   );
-                  final harga =
-                      produk['harga'] ?? 0; // Menggunakan harga produk
-                  final jumlah = item['jumlah'] ??
-                      0; // Menggunakan jumlah default 0 jika null
-                  final subtotal =
-                      harga * jumlah; // Menghitung subtotal setiap item
+                  final harga = produk['harga'] ?? 0;
+                  final jumlah = item['jumlah'] ?? 0;
+                  final subtotal = harga * jumlah;
 
-                  // Update subtotal untuk setiap item
                   item['subtotal'] = subtotal;
 
                   return ListTile(
-                    title: Text(item['nama_produk']), // Nama produk
+                    title: Text(
+                      item['nama_produk'],
+                      style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF091057)),
+                    ),
                     subtitle: Text(
                       'Jumlah: $jumlah | Subtotal: Rp${subtotal.toStringAsFixed(0)}',
-                      style: GoogleFonts.poppins(fontSize: 14),
+                      style: GoogleFonts.poppins(
+                          fontSize: 14, color: Colors.grey[700]),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Tombol untuk mengurangi jumlah produk
                         IconButton(
                           icon: const Icon(Icons.remove, color: Colors.red),
                           onPressed: () {
                             setState(() {
                               if (item['jumlah'] > 1) {
                                 item['jumlah']--;
-                                item['subtotal'] =
-                                    item['jumlah'] * harga; // Update subtotal
-                                totalHarga -= harga; // Update totalHarga
+                                item['subtotal'] = item['jumlah'] * harga;
+                                totalHarga -= harga;
                               } else {
-                                totalHarga -=
-                                    item['subtotal']; // Kurangi total harga
-                                keranjang.removeAt(
-                                    index); // Hapus item jika jumlah = 0
+                                totalHarga -= item['subtotal'];
+                                keranjang.removeAt(index);
                               }
                             });
                           },
                         ),
-                        // Menampilkan jumlah produk
-                        Text(item['jumlah'].toString()),
-                        // Tombol untuk menambah jumlah produk
+                        Text(
+                          item['jumlah'].toString(),
+                          style: GoogleFonts.poppins(fontSize: 14),
+                        ),
                         IconButton(
                           icon: const Icon(Icons.add, color: Colors.green),
                           onPressed: () {
-                            final stokProduk =
-                                produk['stok'] ?? 0; // Cek stok produk
-                            if (item['jumlah'] < stokProduk) {
+                            final stokProduk = produk['stok'];
+                            if (item['jumlah'] + 1 <= stokProduk) {
                               setState(() {
                                 item['jumlah']++;
-                                item['subtotal'] =
-                                    item['jumlah'] * harga; // Update subtotal
-                                totalHarga += harga; // Update totalHarga
+                                item['subtotal'] = item['jumlah'] * harga;
+                                totalHarga += harga;
                               });
                             } else {
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(const SnackBar(
-                                content: Text('Stok tidak mencukupi!'),
-                              ));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Stok tidak mencukupi!',
+                                    style: GoogleFonts.poppins(),
+                                  ),
+                                ),
+                              );
                             }
                           },
                         ),
@@ -338,19 +492,27 @@ class _PesananState extends State<Pesanan> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Total: Rp${totalHarga.toStringAsFixed(0)}',
-                    style: GoogleFonts.poppins(
-                        fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(
+                  'Total: Rp${totalHarga.toStringAsFixed(0)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFFEC8305),
+                  ),
+                ),
                 ElevatedButton(
                   onPressed: _simpanTransaksi,
-                  child: const Text('Simpan'),
+                  child: Text(
+                    'Simpan',
+                    style: GoogleFonts.poppins(
+                        fontSize: 16, color: const Color(0xFF091057)),
+                  ),
                 ),
               ],
             ),
           ],
         ),
       ),
-      // bottomNavigationBar: BottomNavBar(),
     );
   }
 }
