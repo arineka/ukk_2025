@@ -113,7 +113,7 @@ class _LoginState extends State<Login> {
                       TextSpan(
                         text: 'Kasir.in',
                         style: GoogleFonts.poppins(
-                          fontSize: 14,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFFEC8305),
                         ),
